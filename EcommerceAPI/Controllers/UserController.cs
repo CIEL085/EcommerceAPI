@@ -12,44 +12,38 @@ namespace EcommerceAPI.Controllers
     [Route("[controller]")]
     public class UserController : ControllerBase
     {
-        private readonly UserDbContext _context;
-        private readonly IUser _user;
+        private readonly IUser _userService;
 
-        public UserController(UserDbContext context, IUser user)
+        public UserController(IUser userService)
         {
-            _context = context;
-            _user = user;
+            _userService = userService;
         }
 
         [HttpGet]
-        public IActionResult GetUsers()
+        public async Task<IActionResult> GetUsers()
         {
-            var users = _context.User.ToList();
-            var config = new MapperConfiguration(static cfg => cfg.CreateMap<UserServices, UserDto>());
-            var mapper = new Mapper(config);
-            var user = mapper.Map<User>(users);
+            // Obter usuários já processados no serviço
+            var users = await _userService.GetUsers();
             return Ok(users);
         }
 
         [HttpPost]
-        public IActionResult CreateUser([FromBody] User user)
+        public async Task<IActionResult> CreateUser([FromBody] UserDto userDto)
         {
-            _context.User.Add(user);
-            _context.SaveChanges();
-            return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
-        }
-
-        [HttpPost("CriarUsuario")]
-        public async Task<IActionResult> CriarUsuario(UserDto userDto)
-        {
-
-            var response = await _user.Execute(userDto);
-            return Ok(response);
+            try
+            {
+                // Usar o serviço para criar o usuário
+                var createdUser = await _userService.Execute(userDto);
+                return CreatedAtAction(nameof(GetUsers), new { id = createdUser.Id }, createdUser);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
-
-
 }
+
 
 
 

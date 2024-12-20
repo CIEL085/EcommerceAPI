@@ -4,7 +4,6 @@ using EcommerceAPI.Infra;
 using EcommerceAPI.Interfaces;
 using EcommerceAPI.Models;
 using EcommerceAPI.Validation;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcommerceAPI.Services
@@ -12,23 +11,39 @@ namespace EcommerceAPI.Services
     public class UserServices : IUser
     {
         private readonly UserDbContext _context;
-        public UserServices(UserDbContext context)
+        private readonly IMapper _mapper;
+
+        public UserServices(UserDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
-        public async Task<User> Execute(UserDto userDto) 
+
+        public async Task<List<UserDto>> GetUsers()
         {
-            var teste = await new UserValidator().ValidateAsync(userDto);
-
-            var user = Mapper.ReferenceEquals();
-            _context.User.Add(userDto);
-            _context.SaveChanges();
-
-            // validação com fluent validation (estudar como irá fazer pelo youtube)
-            // chamar banco de dados e adicionar o usuário na tabela (estudar como fazer pelo youtube e no projeto já feito)
-            // retornar o usuário criado
-            return null;
+            var users = await _context.User.ToListAsync();
+            return _mapper.Map<List<UserDto>>(users);
         }
 
+        public async Task<User> Execute(UserDto userDto)
+        {
+            // Validação do DTO usando FluentValidation
+            var validationResult = await new UserValidator().ValidateAsync(userDto);
+            if (!validationResult.IsValid)
+            {
+                // Tratar erros de validação
+                throw new Exception(string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
+            }
+
+            // Mapeia UserDto para a entidade User
+            var user = _mapper.Map<User>(userDto);
+
+            // Adiciona o usuário ao banco de dados
+            await _context.User.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            // Retorna o usuário criado
+            return user;
+        }
     }
 }
